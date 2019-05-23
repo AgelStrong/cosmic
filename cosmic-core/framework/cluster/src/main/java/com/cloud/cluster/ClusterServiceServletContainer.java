@@ -11,23 +11,20 @@ import java.util.concurrent.Executors;
 
 import org.apache.http.ConnectionClosedException;
 import org.apache.http.HttpException;
+import org.apache.http.impl.DefaultBHttpServerConnection;
 import org.apache.http.impl.DefaultConnectionReuseStrategy;
 import org.apache.http.impl.DefaultHttpResponseFactory;
-import org.apache.http.impl.DefaultHttpServerConnection;
-import org.apache.http.params.BasicHttpParams;
-import org.apache.http.params.CoreConnectionPNames;
-import org.apache.http.params.CoreProtocolPNames;
-import org.apache.http.params.HttpParams;
 import org.apache.http.protocol.BasicHttpContext;
-import org.apache.http.protocol.BasicHttpProcessor;
 import org.apache.http.protocol.HttpContext;
+import org.apache.http.protocol.HttpProcessor;
+import org.apache.http.protocol.HttpProcessorBuilder;
 import org.apache.http.protocol.HttpRequestHandler;
-import org.apache.http.protocol.HttpRequestHandlerRegistry;
 import org.apache.http.protocol.HttpService;
 import org.apache.http.protocol.ResponseConnControl;
 import org.apache.http.protocol.ResponseContent;
 import org.apache.http.protocol.ResponseDate;
 import org.apache.http.protocol.ResponseServer;
+import org.apache.http.protocol.UriHttpRequestHandlerMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,10 +51,9 @@ public class ClusterServiceServletContainer {
     }
 
     static class ListenerThread extends Thread {
-        private final ExecutorService _executor;
+        private ExecutorService _executor;
         private HttpService _httpService = null;
         private volatile ServerSocket _serverSocket = null;
-        private HttpParams _params = null;
 
         public ListenerThread(final HttpRequestHandler requestHandler, final int port) {
             _executor = Executors.newCachedThreadPool(new NamedThreadFactory("Cluster-Listener"));
@@ -69,28 +65,20 @@ public class ClusterServiceServletContainer {
                 return;
             }
 
-            _params = new BasicHttpParams();
-            _params.setIntParameter(CoreConnectionPNames.SO_TIMEOUT, 5000)
-                   .setIntParameter(CoreConnectionPNames.SOCKET_BUFFER_SIZE, 8 * 1024)
-                   .setBooleanParameter(CoreConnectionPNames.STALE_CONNECTION_CHECK, false)
-                   .setBooleanParameter(CoreConnectionPNames.TCP_NODELAY, true)
-                   .setParameter(CoreProtocolPNames.ORIGIN_SERVER, "HttpComponents/1.1");
-
             // Set up the HTTP protocol processor
-            final BasicHttpProcessor httpproc = new BasicHttpProcessor();
-            httpproc.addInterceptor(new ResponseDate());
-            httpproc.addInterceptor(new ResponseServer());
-            httpproc.addInterceptor(new ResponseContent());
-            httpproc.addInterceptor(new ResponseConnControl());
+            final HttpProcessor httpproc = HttpProcessorBuilder.create()
+                                                               .add(new ResponseDate())
+                                                               .add(new ResponseServer("HttpComponents/1.1"))
+                                                               .add(new ResponseContent())
+                                                               .add(new ResponseConnControl())
+                                                               .build();
 
             // Set up request handlers
-            final HttpRequestHandlerRegistry reqistry = new HttpRequestHandlerRegistry();
-            reqistry.register("/clusterservice", requestHandler);
+            final UriHttpRequestHandlerMapper registry = new UriHttpRequestHandlerMapper();
+            registry.register("/clusterservice", requestHandler);
 
             // Set up the HTTP service
-            _httpService = new HttpService(httpproc, new DefaultConnectionReuseStrategy(), new DefaultHttpResponseFactory());
-            _httpService.setParams(_params);
-            _httpService.setHandlerResolver(reqistry);
+            _httpService = new HttpService(httpproc, new DefaultConnectionReuseStrategy(), new DefaultHttpResponseFactory(), registry);
         }
 
         public void stopRunning() {
@@ -114,8 +102,9 @@ public class ClusterServiceServletContainer {
                 try {
                     // Set up HTTP connection
                     final Socket socket = _serverSocket.accept();
-                    final DefaultHttpServerConnection conn = new DefaultHttpServerConnection();
-                    conn.bind(socket, _params);
+                    final DefaultBHttpServerConnection conn = new DefaultBHttpServerConnection(8 * 1024);
+                    conn.setSocketTimeout(5000);
+                    conn.bind(socket);
 
                     _executor.execute(new ManagedContextRunnable() {
                         @Override
@@ -135,7 +124,7 @@ public class ClusterServiceServletContainer {
                                 }
                             } catch (final ConnectionClosedException ex) {
                                 // client close and read time out exceptions are expected
-                                // when KEEP-AVLIE is enabled
+                                // when KEEP-ALIVE is enabled
                                 s_logger.trace("Client closed connection", ex);
                             } catch (final IOException ex) {
                                 s_logger.trace("I/O error", ex);

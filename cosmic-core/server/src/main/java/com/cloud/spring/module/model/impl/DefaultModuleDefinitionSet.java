@@ -35,7 +35,7 @@ public class DefaultModuleDefinitionSet implements ModuleDefinitionSet {
     public static final String DEFAULT_CONFIG_PROPERTIES = "DefaultConfigProperties";
     public static final String MODULES_EXCLUDE = "modules.exclude";
     public static final String MODULES_INCLUDE_PREFIX = "modules.include.";
-    public static final String MODULE_PROPERITES = "ModuleProperties";
+    public static final String MODULE_PROPERTIES = "ModuleProperties";
     public static final String DEFAULT_CONFIG_XML = "defaults-context.xml";
     private static final Logger log = LoggerFactory.getLogger(DefaultModuleDefinitionSet.class);
     String root;
@@ -141,18 +141,14 @@ public class DefaultModuleDefinitionSet implements ModuleDefinitionSet {
 
         final List<Resource> resources = (List<Resource>) context.getBean(DEFAULT_CONFIG_RESOURCES);
 
-        withModule((def, parents) -> {
-            for (final Resource defaults : def.getConfigLocations()) {
-                resources.add(defaults);
-            }
-        });
+        withModule((def, parents) -> resources.addAll(def.getConfigLocations()));
 
         configProperties = (Properties) context.getBean(DEFAULT_CONFIG_PROPERTIES);
         for (final Resource resource : resources) {
             load(resource, configProperties);
         }
 
-        for (final Resource resource : (Resource[]) context.getBean(MODULE_PROPERITES)) {
+        for (final Resource resource : (Resource[]) context.getBean(MODULE_PROPERTIES)) {
             load(resource, configProperties);
         }
 
@@ -194,12 +190,7 @@ public class DefaultModuleDefinitionSet implements ModuleDefinitionSet {
     }
 
     protected void printHierarchy() {
-        withModule(new WithModule() {
-            @Override
-            public void with(final ModuleDefinition def, final Stack<ModuleDefinition> parents) {
-                log.info(String.format("Module Hierarchy:%" + ((parents.size() * 2) + 1) + "s%s", "", def.getName()));
-            }
-        });
+        withModule((def, parents) -> log.info(String.format("Module Hierarchy:%" + ((parents.size() * 2) + 1) + "s%s", "", def.getName())));
     }
 
     protected void withModule(final WithModule with) {
@@ -245,16 +236,15 @@ public class DefaultModuleDefinitionSet implements ModuleDefinitionSet {
 
     @Override
     public Resource[] getConfigResources(final String name) {
-        final Set<Resource> resources = new LinkedHashSet<>();
 
-        ModuleDefinition original = null;
+        ModuleDefinition original;
         ModuleDefinition def = original = modules.get(name);
 
         if (def == null) {
             return new Resource[]{};
         }
 
-        resources.addAll(def.getContextLocations());
+        final Set<Resource> resources = new LinkedHashSet<>(def.getContextLocations());
 
         while (def != null) {
             resources.addAll(def.getInheritableContextLocations());
@@ -263,7 +253,7 @@ public class DefaultModuleDefinitionSet implements ModuleDefinitionSet {
 
         resources.addAll(original.getOverrideContextLocations());
 
-        return resources.toArray(new Resource[resources.size()]);
+        return resources.toArray(new Resource[0]);
     }
 
     private interface WithModule {

@@ -1,6 +1,7 @@
 package com.cloud.spring.module.web;
 
 import com.cloud.flyway.FlywayDB;
+import com.cloud.legacymodel.exceptions.CloudRuntimeException;
 import com.cloud.spring.module.factory.CloudStackSpringContext;
 
 import javax.servlet.ServletContext;
@@ -32,7 +33,11 @@ public class CloudStackContextLoaderListener extends ContextLoaderListener {
         try {
             final FlywayDB flywayDB = new FlywayDB();
             flywayDB.check();
+        } catch (final CloudRuntimeException e) {
+            log.error("Failed FlywayDB check");
+        }
 
+        try {
             cloudStackContext = new CloudStackSpringContext();
             cloudStackContext.registerShutdownHook();
             event.getServletContext().setAttribute(CloudStackSpringContext.CLOUDSTACK_CONTEXT_SERVLET_KEY, cloudStackContext);

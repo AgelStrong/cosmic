@@ -42,9 +42,6 @@
 
     <bean class="com.cloud.common.managed.context.ManagedContextRunnable" factory-method="initializeGlobalContext"
           autowire-candidate="false">
-        <constructor-arg>
-            <ref bean="ManagedContext" />
-        </constructor-arg>
+        <constructor-arg ref="ManagedContext" />
     </bean>
-
 </beans>

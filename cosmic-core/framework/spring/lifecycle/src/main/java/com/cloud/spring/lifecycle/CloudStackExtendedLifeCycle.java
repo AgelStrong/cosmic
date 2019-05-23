@@ -41,12 +41,7 @@ public class CloudStackExtendedLifeCycle extends AbstractBeanCollector {
 
     private void sortBeans() {
         for (final ComponentLifecycle lifecycle : getBeans(ComponentLifecycle.class)) {
-            Set<ComponentLifecycle> set = sorted.get(lifecycle.getRunLevel());
-
-            if (set == null) {
-                set = new HashSet<>();
-                sorted.put(lifecycle.getRunLevel(), set);
-            }
+            Set<ComponentLifecycle> set = sorted.computeIfAbsent(lifecycle.getRunLevel(), k -> new HashSet<>());
 
             set.add(lifecycle);
         }
@@ -63,15 +58,12 @@ public class CloudStackExtendedLifeCycle extends AbstractBeanCollector {
     private void configure() {
         log.info("Configuring CloudStack Components");
 
-        with(new WithComponentLifeCycle() {
-            @Override
-            public void with(final ComponentLifecycle lifecycle) {
-                try {
-                    lifecycle.configure(lifecycle.getName(), lifecycle.getConfigParams());
-                } catch (final ConfigurationException e) {
-                    log.error("Failed to configure {}", lifecycle.getName(), e);
-                    throw new CloudRuntimeException(e);
-                }
+        with(lifecycle -> {
+            try {
+                lifecycle.configure(lifecycle.getName(), lifecycle.getConfigParams());
+            } catch (final ConfigurationException e) {
+                log.error("Failed to configure {}", lifecycle.getName(), e);
+                throw new CloudRuntimeException(e);
             }
         });
 
@@ -88,12 +80,7 @@ public class CloudStackExtendedLifeCycle extends AbstractBeanCollector {
 
     @Override
     public void stop() {
-        with(new WithComponentLifeCycle() {
-            @Override
-            public void with(final ComponentLifecycle lifecycle) {
-                lifecycle.stop();
-            }
-        });
+        with(lifecycle -> lifecycle.stop());
 
         super.stop();
     }
@@ -101,26 +88,23 @@ public class CloudStackExtendedLifeCycle extends AbstractBeanCollector {
     public void startBeans() {
         log.info("Starting CloudStack Components");
 
-        with(new WithComponentLifeCycle() {
-            @Override
-            public void with(final ComponentLifecycle lifecycle) {
-                lifecycle.start();
+        with(lifecycle -> {
+            lifecycle.start();
 
-                if (lifecycle instanceof ManagementBean) {
-                    final ManagementBean mbean = (ManagementBean) lifecycle;
-                    try {
-                        JmxUtil.registerMBean(mbean);
-                    } catch (final MalformedObjectNameException e) {
-                        log.warn("Unable to register MBean: " + mbean.getName(), e);
-                    } catch (final InstanceAlreadyExistsException e) {
-                        log.warn("Unable to register MBean: " + mbean.getName(), e);
-                    } catch (final MBeanRegistrationException e) {
-                        log.warn("Unable to register MBean: " + mbean.getName(), e);
-                    } catch (final NotCompliantMBeanException e) {
-                        log.warn("Unable to register MBean: " + mbean.getName(), e);
-                    }
-                    log.info("Registered MBean: " + mbean.getName());
+            if (lifecycle instanceof ManagementBean) {
+                final ManagementBean mbean = (ManagementBean) lifecycle;
+                try {
+                    JmxUtil.registerMBean(mbean);
+                } catch (final MalformedObjectNameException e) {
+                    log.warn("Unable to register MBean: " + mbean.getName(), e);
+                } catch (final InstanceAlreadyExistsException e) {
+                    log.warn("Unable to register MBean: " + mbean.getName(), e);
+                } catch (final MBeanRegistrationException e) {
+                    log.warn("Unable to register MBean: " + mbean.getName(), e);
+                } catch (final NotCompliantMBeanException e) {
+                    log.warn("Unable to register MBean: " + mbean.getName(), e);
                 }
+                log.info("Registered MBean: " + mbean.getName());
             }
         });
 
@@ -128,12 +112,9 @@ public class CloudStackExtendedLifeCycle extends AbstractBeanCollector {
     }
 
     public void stopBeans() {
-        with(new WithComponentLifeCycle() {
-            @Override
-            public void with(final ComponentLifecycle lifecycle) {
-                log.info("stopping bean " + lifecycle.getName());
-                lifecycle.stop();
-            }
+        with(lifecycle -> {
+            log.info("stopping bean " + lifecycle.getName());
+            lifecycle.stop();
         });
     }
 
@@ -142,7 +123,7 @@ public class CloudStackExtendedLifeCycle extends AbstractBeanCollector {
         return 2000;
     }
 
-    private static interface WithComponentLifeCycle {
-        public void with(ComponentLifecycle lifecycle);
+    private interface WithComponentLifeCycle {
+        void with(ComponentLifecycle lifecycle);
     }
 }
