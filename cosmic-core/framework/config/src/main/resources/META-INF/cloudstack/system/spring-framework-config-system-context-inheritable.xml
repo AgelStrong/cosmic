@@ -4,6 +4,8 @@
                       http://www.springframework.org/schema/beans/spring-beans-3.0.xsd"
 >
 
+    <bean class="com.cloud.flyway.FlywayDB" init-method="check" />
+
     <bean class="com.cloud.spring.lifecycle.registry.RegistryLifecycle">
         <property name="registry" ref="scopedConfigStorageRegistry" />
         <property name="typeClass" value="com.cloud.framework.config.ScopedConfigStorage" />
