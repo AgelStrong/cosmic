@@ -12,16 +12,6 @@
     <dependencies>
         <dependency>
             <groupId>cloud.cosmic</groupId>
-            <artifactId>cloud-framework-spring-lifecycle</artifactId>
-            <version>6.4.1-SNAPSHOT</version>
-        </dependency>
-        <dependency>
-            <groupId>cloud.cosmic</groupId>
-            <artifactId>cosmic-flyway</artifactId>
-            <version>6.4.1-SNAPSHOT</version>
-        </dependency>
-        <dependency>
-            <groupId>cloud.cosmic</groupId>
             <artifactId>cosmic-common</artifactId>
             <version>6.4.1-SNAPSHOT</version>
         </dependency>

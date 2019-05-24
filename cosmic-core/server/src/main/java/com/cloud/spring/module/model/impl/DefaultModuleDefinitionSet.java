@@ -25,7 +25,6 @@ import org.springframework.beans.BeansException;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.DependsOn;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
 import org.springframework.util.StringUtils;
@@ -272,7 +271,6 @@ public class DefaultModuleDefinitionSet implements ModuleDefinitionSet {
         }
 
         @Bean(name = DEFAULT_CONFIG_RESOURCES)
-        @DependsOn(value = {"FlywayDB"})
         public List<Resource> defaultConfigResources() {
             return new ArrayList<>();
         }

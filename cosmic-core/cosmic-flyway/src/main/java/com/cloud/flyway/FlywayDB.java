@@ -30,7 +30,12 @@ public class FlywayDB {
             throw new CloudRuntimeException(e.getMessage(), e);
         }
 
-        final FluentConfiguration flywayConfig = Flyway.configure().dataSource(dataSource).table("schema_version").encoding("UTF-8");
+        final FluentConfiguration flywayConfig = Flyway.configure()
+                                                       .dataSource(dataSource)
+                                                       .table("schema_version")
+                                                       .encoding("UTF-8")
+                                                       .ignoreFutureMigrations(true)
+                                                       .baselineOnMigrate(true);
         final Flyway flyway = new Flyway(flywayConfig);
 
         try {
